@@ -8,6 +8,7 @@ from datetime import datetime
 import argparse
 from dotenv import load_dotenv
 from time import sleep
+from zipfile import ZipFile
 
 # when rate-limited, add this to the wait time
 ADDITIONAL_SLEEP_TIME = 2
@@ -502,6 +503,12 @@ if __name__ == "__main__":
         action="store_true",
         help="Download all files",
     )
+    parser.add_argument(
+        "--full",
+        action="store_true",
+        help="Do a full slack export as zip",
+    )
+
 
     a = parser.parse_args()
     ts = str(datetime.strftime(datetime.now(), "%m-%d-%Y_%H%M%S"))
@@ -515,21 +522,42 @@ if __name__ == "__main__":
         out_dir_parent = os.path.abspath(
             os.path.expanduser(os.path.expandvars(a.o))
         )
-        out_dir = os.path.join(out_dir_parent, "slack_export_%s" % ts)
+        if a.full:
+            out_dir = out_dir_parent
+        else:
+            out_dir = os.path.join(out_dir_parent, "slack_export_%s" % ts)
 
-    def save(data, filename, dir=out_dir):
+    if a.full:
+        a.json = True
+        arch_file_name = "slack_export_%s.zip" % ts
+
+    def save(data, filename, subdir=None):
         if a.o is None:
             json.dump(data, sys.stdout, indent=4)
         else:
             filename = filename + ".json" if a.json else filename + ".txt"
-            os.makedirs(dir, exist_ok=True)
-            full_filepath = os.path.join(dir, filename)
-            print("Writing output to %s" % full_filepath)
-            with open(full_filepath, mode="w") as f:
-                if a.json:
-                    json.dump(data, f, indent=4)
-                else:
-                    f.write(data)
+            dir = out_dir
+            if a.full:
+                os.makedirs(dir, exist_ok=True)
+                archpath=os.path.join(dir, arch_file_name)
+                with ZipFile(archpath, 'a') as file:
+                    if subdir is not None:
+                        # file.mkdir(subdir)
+                        filepath = os.path.join(subdir, filename)
+                    else:
+                        filepath = filename                        
+                    file.writestr(filepath, json.dumps(data, indent=4))
+            elif subdir is not None:
+                dir = os.path.join(dir, subdir)
+            else:
+                os.makedirs(dir, exist_ok=True)
+                full_filepath = os.path.join(dir, filename)
+                print("Writing output to %s" % full_filepath)
+                with open(full_filepath, mode="w") as f:
+                    if a.json:
+                        json.dump(data, f, indent=4)
+                    else:
+                        f.write(data)
 
     def save_replies(channel_hist, channel_id, channel_list, users, folder=None):
         reply_timestamps = [x["ts"] for x in channel_hist if "reply_count" in x]
@@ -545,11 +573,7 @@ if __name__ == "__main__":
             )
             data_replies = parse_replies(ch_replies, users)
             data_replies = "%s\n%s\n\n%s" % (header_str, sep_str, data_replies)
-        if folder is not None:
-            dir = os.path.join(out_dir, folder)
-        else:
-            dir = out_dir
-        save(data_replies, "channel-replies_%s" % channel_id, dir)
+        save(data_replies, "channel-replies_%s" % channel_id, folder)
 
     def save_channel(channel_hist, channel_id, channel_list, users, folder=None):
         if a.json:
@@ -563,11 +587,7 @@ if __name__ == "__main__":
                 % (channel_id, header_str, len(channel_hist), sep_str)
                 + data_ch
             )
-        if folder is not None:
-            dir = os.path.join(out_dir, folder)
-        else:
-            dir = out_dir
-        save(data_ch, "channel_%s" % channel_id, dir)
+        save(data_ch, "channel_%s" % channel_id, folder)
         if a.r:
             save_replies(channel_hist, channel_id, channel_list, users, folder)
 
