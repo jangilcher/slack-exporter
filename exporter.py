@@ -508,6 +508,10 @@ if __name__ == "__main__":
         action="store_true",
         help="Do a full slack export as zip",
     )
+    parser.add_argument(
+        "-e",
+        help="file containing a list of excluded channels"
+    )
 
 
     a = parser.parse_args()
@@ -530,6 +534,12 @@ if __name__ == "__main__":
     if a.full:
         a.json = True
         arch_file_name = "slack_export_%s.zip" % ts
+
+    excluded_channels = []
+    
+    if a.e is not None:
+        with open(a.e) as file:
+            excluded_channels = file.read().splitlines()
 
     def save(data, filename, subdir=None):
         if a.o is None:
@@ -603,18 +613,20 @@ if __name__ == "__main__":
     mpim_list = []
     im_list = []
     for ch_id in [x["id"] for x in ch_list]:
-        chan = channel_info(ch_id)["channel"]
-        chan["members"] = channel_members(ch_id)
-        if chan["is_im"]:
-            im_list.append(chan)
-        elif chan["is_channel"]:
-            if chan["is_private"]:
-                if chan["is_mpim"]:
-                    mpim_list.append(chan)
+        print(excluded_channels)
+        if ch_id not in excluded_channels:
+            chan = channel_info(ch_id)["channel"]
+            chan["members"] = channel_members(ch_id)
+            if chan["is_im"]:
+                im_list.append(chan)
+            elif chan["is_channel"]:
+                if chan["is_private"]:
+                    if chan["is_mpim"]:
+                        mpim_list.append(chan)
+                    else:
+                        priv_ch_list.append(chan)
                 else:
-                    priv_ch_list.append(chan)
-            else:
-                pub_ch_list.append(chan)
+                    pub_ch_list.append(chan)
     save(pub_ch_list, "channels")
     save(priv_ch_list, "groups")
     save(im_list, "dms")
