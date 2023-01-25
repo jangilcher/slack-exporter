@@ -613,7 +613,6 @@ if __name__ == "__main__":
     mpim_list = []
     im_list = []
     for ch_id in [x["id"] for x in ch_list]:
-        print(excluded_channels)
         if ch_id not in excluded_channels:
             chan = channel_info(ch_id)["channel"]
             chan["members"] = channel_members(ch_id)
