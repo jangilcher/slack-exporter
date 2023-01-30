@@ -626,29 +626,44 @@ if __name__ == "__main__":
                         priv_ch_list.append(chan)
                 else:
                     pub_ch_list.append(chan)
-    save(pub_ch_list, "channels")
-    save(priv_ch_list, "groups")
-    save(im_list, "dms")
-    save(mpim_list, "mpims")
+
+    empty_channels = []
 
     for ch_id, ch_name in [(x["id"], x["name"]) for x in pub_ch_list]:
         ch_hist = channel_history(ch_id, oldest=a.fr, latest=a.to)
+        if ch_hist == []:
+            empty_channels.append(ch_id)
+            continue
         save_channel(ch_hist, ch_id, ch_list, user_list, ch_name)
         save_replies(ch_hist, ch_id, ch_list, user_list, ch_name)
     for ch_id, ch_name in [(x["id"], x["name"]) for x in priv_ch_list]:
         ch_hist = channel_history(ch_id, oldest=a.fr, latest=a.to)
+        if ch_hist == []:
+            empty_channels.append(ch_id)
+            continue
         save_channel(ch_hist, ch_id, ch_list, user_list, ch_name)
         save_replies(ch_hist, ch_id, ch_list, user_list, ch_name)
     for ch_id, ch_name in [(x["id"], x["name"]) for x in mpim_list]:
         ch_hist = channel_history(ch_id, oldest=a.fr, latest=a.to)
+        if ch_hist == []:
+            empty_channels.append(ch_id)
+            continue
         save_channel(ch_hist, ch_id, ch_list, user_list, ch_name)
         save_replies(ch_hist, ch_id, ch_list, user_list, ch_name)
     for ch_id in [x["id"] for x in im_list]:
         ch_hist = channel_history(ch_id, oldest=a.fr, latest=a.to)
+        if ch_hist == []:
+            empty_channels.append(ch_id)
+            continue
         save_channel(ch_hist, ch_id, ch_list, user_list, ch_id)
         save_replies(ch_hist, ch_id, ch_list, user_list, ch_id)
     save(user_list, "users")
 
+    save([x for x in pub_ch_list if x["id"] not in empty_channels], "channels")
+    save([x for x in priv_ch_list if x["id"] not in empty_channels], "groups")
+    save([x for x in im_list if x["id"] not in empty_channels], "dms")
+    save([x for x in mpim_list if x["id"] not in empty_channels], "mpims")
+    
     if a.lc:
         data = ch_list if a.json else parse_channel_list(ch_list, user_list)
         save(data, "channel_list")
