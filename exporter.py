@@ -126,6 +126,15 @@ def paginated_get(url, params, combine_key=None, response_url=None):
 
 # GET requests
 
+def user_info(user_id):
+    params = {
+        "user": user_id
+    }
+
+    return get_data(
+        "https://slack.com/api/users.info",
+        params
+    ).json().get('user', None)
 
 def channel_list(team_id=None, response_url=None):
     params = {
@@ -612,10 +621,13 @@ if __name__ == "__main__":
     priv_ch_list= []
     mpim_list = []
     im_list = []
+    shared_list=[]
     for ch_id in [x["id"] for x in ch_list]:
         if ch_id not in excluded_channels:
             chan = channel_info(ch_id)["channel"]
             chan["members"] = channel_members(ch_id)
+            if chan.get('is_shared', False):
+                shared_list.append(chan)
             if chan["is_im"]:
                 im_list.append(chan)
             elif chan["is_channel"]:
@@ -626,6 +638,12 @@ if __name__ == "__main__":
                         priv_ch_list.append(chan)
                 else:
                     pub_ch_list.append(chan)
+
+    external_users = []
+    externel_uids = [uid for x in shared_list for uid in x['members'] if x['members'] not in [usr['id'] for usr in user_list] ]
+    for members in set(externel_uids):
+        external_users.append(user_info(members))
+    user_list += external_users
 
     empty_channels = []
 
