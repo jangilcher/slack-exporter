@@ -43,6 +43,7 @@ except KeyError:
     handle_print("Missing SLACK_USER_TOKEN in environment variables", response_url)
     sys.exit(1)
 
+file_token = os.environ.get('SLACK_FILE_DOWNLOAD_TOKEN', '')
 
 def _get_data(url, params):
     return requests.get(url, headers=HEADERS, params=params)
@@ -581,6 +582,15 @@ if __name__ == "__main__":
     def save_replies(channel_hist, channel_id, channel_list, users, folder=None):
         reply_timestamps = [x["ts"] for x in channel_hist if "reply_count" in x]
         ch_replies = channel_replies(reply_timestamps, channel_id)
+        if file_token != '' and not file_token.isspace():
+            for m in ch_replies:
+                files = m.get('files', None)
+                if files is not None:
+                    for file in files:
+                        if file.get('url_private', '').startswith('https://files.slack.com/files-pri/'):
+                            file['url_private'] += f'?t={file_token}'
+                        if file.get('url_private_download', '').startswith('https://files.slack.com/files-pri/'):
+                            file['url_private_download'] += f'?t={file_token}'
         if a.json:
             data_replies = ch_replies
         else:
@@ -595,6 +605,15 @@ if __name__ == "__main__":
         save(data_replies, "channel-replies_%s" % channel_id, folder)
 
     def save_channel(channel_hist, channel_id, channel_list, users, folder=None):
+        if file_token != '' and not file_token.isspace():
+            for m in channel_hist:
+                files = m.get('files', None)
+                if files is not None:
+                    for file in files:
+                        if file.get('url_private', '').startswith('https://files.slack.com/files-pri/'):
+                            file['url_private'] += f'?t={file_token}'
+                        if file.get('url_private_download', '').startswith('https://files.slack.com/files-pri/'):
+                            file['url_private_download'] += f'?t={file_token}'
         if a.json:
             data_ch = channel_hist
         else:
